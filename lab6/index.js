@@ -1,5 +1,13 @@
 const request = require('request');
+const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const port = 3000;
 require('dotenv').config();
+
+const app = express();
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const createUser = (token, email, given_name, family_name, name, nickname, password) => {
     const userOptions = {
@@ -18,7 +26,7 @@ const createUser = (token, email, given_name, family_name, name, nickname, passw
             password,
             connection: 'Username-Password-Authentication',
         }),
-    };
+    }
 
     request(tokenOptions, (error, response, body) => {
         if (error) {
@@ -102,8 +110,64 @@ const refreshToken = (refreshToken) => {
     });
 };
 
-module.exports = {
-    createUser,
-    loginUser,
-    getApplicationToken
-}
+app.get('/', (req, res) => {
+    if (req.username) {
+        return res.json({
+            username: req.username,
+            logout: 'http://localhost:3000/logout'
+        })
+    }
+    res.sendFile(path.join(__dirname+'/index.html'));
+});
+
+app.get('/signup', (req, res) => {
+    if (req.username) {
+        return res.json({
+            username: req.username,
+            logout: 'http://localhost:3000/logout'
+        })
+    }
+    res.sendFile(path.join(__dirname+'/signup.html'));
+});
+
+app.get('/logout', (req, res) => {
+    res.redirect('/');
+});
+
+app.get('/api/login', (_, res) => {
+    const domain = process.env.AUTH0_DOMAIN;
+    const id = process.env.CLIENT_ID;
+    const redUri = encodeURIComponent('http://localhost:3000');
+    const resType = 'code';
+    const resMode = 'query';
+
+    const authUrl = `${domain}?client_id=${id}&redirect_uri=${redUri}&response_type=${resType}&response_mode=${resMode}`;
+
+    res.redirect(authUrl);
+});
+
+app.post('/api/login', (req, res) => {
+    const { login, password } = req.body;
+    loginUser(login, password);
+});
+
+app.get('/signup', (req, res) => {
+    if (req.username) {
+        return res.json({
+            username: req.username,
+            logout: 'http://localhost:3000/logout'
+        })
+    }
+    res.sendFile(path.join(__dirname+'/signup.html'));
+});
+
+app.post('/api/signup', (req, res) => {
+    const { email, given_name, family_name, name, nickname, password } = req.body;
+    createUser(process.env.ACCESS_TOKEN, email, given_name, family_name, name, nickname, password);    
+});
+
+getApplicationToken();
+
+app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`)
+})
